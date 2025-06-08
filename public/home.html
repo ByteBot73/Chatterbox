@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatterbox - Chat Room</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="/socket.io/socket.io.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <div class="app-wrapper">
+        <header class="app-header">
+            <h1>Chatterbox</h1>
+            <div class="header-actions">
+                <button id="public-chat-btn" class="header-btn active">Public Chat</button>
+                <button id="settings-btn" class="header-btn icon-btn"><i class="fas fa-cog"></i></button>
+                <button id="friend-requests-btn" class="header-btn icon-btn">
+                    <i class="fas fa-user-friends"></i>
+                    <span id="friend-request-badge" class="badge hidden"></span>
+                </button>
+                <a href="/logout" class="header-btn action-btn">Log Out</a>
+            </div>
+        </header>
+
+        <main class="chat-main">
+            <aside class="sidebar">
+                <h2>Friends</h2>
+                <ul id="friends-list" class="user-list">
+                    </ul>
+
+                <h2>Other Online Users</h2>
+                <ul id="other-online-users-list" class="user-list">
+                    </ul>
+            </aside>
+
+            <section class="chat-area">
+                <h2 id="chat-header">Public Chat</h2>
+                <div id="messages" class="chat-messages">
+                    </div>
+
+                <div id="typing-indicator" class="typing-indicator"></div>
+
+                <form id="chat-form" class="chat-input-form">
+                    <input id="m" autocomplete="off" placeholder="Type your message..." />
+                    <button type="submit" id="send-btn">Send</button>
+                </form>
+                <div id="dm-status-message" class="dm-status-message hidden">
+                    You can only direct message friends.
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div id="friend-requests-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h3>Friend Requests</h3>
+            <div class="modal-tabs">
+                <button class="modal-tab-btn active" data-tab="incoming">Incoming</button>
+                <button class="modal-tab-btn" data-tab="outgoing">Outgoing</button>
+            </div>
+            <div id="incoming-requests-panel" class="modal-panel active">
+                <ul id="incoming-requests-list" class="request-list">
+                    </ul>
+                <p id="no-incoming-requests" class="no-requests-msg hidden">No incoming requests.</p>
+            </div>
+            <div id="outgoing-requests-panel" class="modal-panel hidden">
+                <ul id="outgoing-requests-list" class="request-list">
+                    </ul>
+                <p id="no-outgoing-requests" class="no-requests-msg hidden">No outgoing requests.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+
+        // UI Elements
+        const publicChatBtn = document.getElementById('public-chat-btn');
+        const settingsBtn = document.getElementById('settings-btn');
+        const friendRequestsBtn = document.getElementById('friend-requests-btn');
+        const friendRequestBadge = document.getElementById('friend-request-badge');
+
+        const friendsList = document.getElementById('friends-list');
+        const otherOnlineUsersList = document.getElementById('other-online-users-list');
+
+        const chatHeader = document.getElementById('chat-header');
+        const messagesDisplay = document.getElementById('messages');
+        const typingIndicator = document.getElementById('typing-indicator');
+        const chatForm = document.getElementById('chat-form');
+        const messageInput = document.getElementById('m');
+        const sendButton = document.getElementById('send-btn');
+        const dmStatusMessage = document.getElementById('dm-status-message');
+
+        // Modal Elements
+        const friendRequestsModal = document.getElementById('friend-requests-modal');
+        const closeButton = friendRequestsModal.querySelector('.close-button');
+        const modalTabBtns = friendRequestsModal.querySelectorAll('.modal-tab-btn');
+        const incomingRequestsPanel = document.getElementById('incoming-requests-panel');
+        const outgoingRequestsPanel = document.getElementById('outgoing-requests-panel');
+        const incomingRequestsList = document.getElementById('incoming-requests-list');
+        const outgoingRequestsList = document.getElementById('outgoing-requests-list');
+        const noIncomingRequestsMsg = document.getElementById('no-incoming-requests');
+        const noOutgoingRequestsMsg = document.getElementById('no-outgoing-requests');
+
+
+        // State Variables
+        let typingTimeout;
+        let isTyping = false;
+        let currentUsername = ''; // Stores the client's own username
+        let activeChatRecipient = null; // null for public, username for DM
+        let onlineUsers = new Set(); // Stores usernames of ALL currently online users (Set of strings)
+        let friends = new Set(); // Stores usernames of accepted friends (Set of strings)
+        let dmHistory = {}; // Stores DMs: { 'usernameA': [{msg}, {msg}], 'usernameB': [{msg}] }
+        let incomingFriendRequests = []; // Stores { id: requestId, username: senderUsername }
+        let outgoingFriendRequests = new Set(); // Stores username of receiver (Set of strings)
+
+
+        // --- Utility Functions ---
+        function scrollToBottom() {
+            messagesDisplay.scrollTop = messagesDisplay.scrollHeight;
+        }
+
+        function addMessage(msgData, targetDisplay) {
+            console.log(`Client: addMessage - Adding message to display:`, msgData);
+            const item = document.createElement('div');
+            item.classList.add('chat-message-item');
+
+            // Determine if it's your own message for styling
+            const isMyMessage = (msgData.user === currentUsername) || (msgData.sender === currentUsername);
+            if (isMyMessage) {
+                item.classList.add('my-message');
+            }
+
+            const userSpan = document.createElement('span');
+            userSpan.classList.add('message-user');
+            userSpan.textContent = `${msgData.user || msgData.sender}: `; // For public (user) or DM (sender)
+
+            const textSpan = document.createElement('span');
+            textSpan.classList.add('message-text');
+            textSpan.textContent = msgData.text;
+
+            const timeSpan = document.createElement('span');
+            timeSpan.classList.add('message-timestamp');
+            timeSpan.textContent = ` (${msgData.timestamp})`;
+
+            item.appendChild(userSpan);
+            item.appendChild(textSpan);
+            item.appendChild(timeSpan);
+
+            targetDisplay.appendChild(item);
+            scrollToBottom();
+        }
+
+        // --- Chat Mode Management ---
+        function setChatMode(recipientUsername) {
+            activeChatRecipient = recipientUsername;
+            messagesDisplay.innerHTML = ''; // Clear current messages
+            console.log(`Client: setChatMode - Switched chat mode to: ${activeChatRecipient === null ? 'Public Chat' : `DM with ${activeChatRecipient}`}`);
+
+            // Update header and input status
+            if (activeChatRecipient === null) {
+                chatHeader.textContent = 'Public Chat';
+                dmStatusMessage.classList.add('hidden');
+                messageInput.disabled = false;
+                sendButton.disabled = false;
+                publicChatBtn.classList.add('active'); // Highlight public chat button
+                // Load public chat history
+                socket.emit('request_public_chat_history'); // Request history on switch to public chat
+            } else {
+                chatHeader.textContent = `Direct Message with ${activeChatRecipient}`;
+                publicChatBtn.classList.remove('active'); // Unhighlight public chat button
+
+                // Check if recipient is a friend to enable DM
+                const isFriend = friends.has(activeChatRecipient);
+                console.log(`Client: setChatMode - Active recipient ${activeChatRecipient}. Is friend? ${isFriend}`);
+                if (isFriend) {
+                    dmStatusMessage.classList.add('hidden');
+                    messageInput.disabled = false;
+                    sendButton.disabled = false;
+                } else {
+                    dmStatusMessage.textContent = `You can only direct message with accepted friends.`;
+                    dmStatusMessage.classList.remove('hidden');
+                    messageInput.disabled = true;
+                    sendButton.disabled = true;
+                }
+
+                // Load DM history
+                if (dmHistory[activeChatRecipient]) {
+                    console.log(`Client: setChatMode - Loading ${dmHistory[activeChatRecipient].length} messages for DM with ${activeChatRecipient}.`);
+                    dmHistory[activeChatRecipient].forEach(msg => addMessage(msg, messagesDisplay));
+                } else {
+                    console.log(`Client: setChatMode - No existing DM history for ${activeChatRecipient}.`);
+                }
+            }
+            // Highlight selected user in lists
+            [...friendsList.children, ...otherOnlineUsersList.children].forEach(li => {
+                if (li.dataset.username === recipientUsername) {
+                    li.classList.add('active-chat');
+                } else {
+                    li.classList.remove('active-chat');
+                }
+            });
+
+            scrollToBottom();
+            messageInput.focus(); // Focus input after changing chat mode
+        }
+
+        // --- UI Rendering Functions ---
+
+        function renderUserLists() {
+            console.log("Client: renderUserLists - Rendering user lists...");
+            friendsList.innerHTML = '';
+            otherOnlineUsersList.innerHTML = '';
+
+            // Render Friends List
+            const sortedFriends = Array.from(friends).sort();
+            if (sortedFriends.length === 0) {
+                 friendsList.innerHTML = '<li class="no-users-msg">No friends yet.</li>';
+            } else {
+                sortedFriends.forEach(username => {
+                    const li = document.createElement('li');
+                    li.textContent = username;
+                    li.classList.add('user-list-item', 'friend-item');
+                    if (onlineUsers.has(username)) {
+                        li.classList.add('online'); // Visually indicate if friend is online
+                    }
+                    li.dataset.username = username;
+                    if (activeChatRecipient === username) {
+                        li.classList.add('active-chat');
+                    }
+                    li.addEventListener('click', () => setChatMode(username));
+                    friendsList.appendChild(li);
+                });
+            }
+
+            // Render Other Online Users List
+            const otherOnlineSorted = Array.from(onlineUsers)
+                .filter(u => u !== currentUsername && !friends.has(u) && !outgoingFriendRequests.has(u))
+                .sort();
+            console.log(`Client: renderUserLists - Other online users eligible for requests: ${otherOnlineSorted.join(', ')}`);
+
+
+            if (otherOnlineSorted.length === 0) {
+                otherOnlineUsersList.innerHTML = '<li class="no-users-msg">No other online users.</li>';
+            } else {
+                otherOnlineSorted.forEach(username => {
+                    const li = document.createElement('li');
+                    li.classList.add('user-list-item');
+                    li.dataset.username = username; // Store username for easy access
+
+                    const usernameSpan = document.createElement('span');
+                    usernameSpan.textContent = username;
+                    li.appendChild(usernameSpan);
+
+                    // Add "Send Request" button
+                    const sendBtn = document.createElement('button');
+                    sendBtn.textContent = 'Add Friend';
+                    sendBtn.classList.add('send-request-btn');
+                    sendBtn.addEventListener('click', (e) => {
+                        e.stopPropagation(); // Prevent li click
+                        console.log(`Client: Sending friend request to ${username}`);
+                        socket.emit('send_friend_request', username);
+                        sendBtn.disabled = true; // Disable after sending
+                        sendBtn.textContent = 'Request Sent';
+                    });
+                    li.appendChild(sendBtn);
+
+                    otherOnlineUsersList.appendChild(li);
+                });
+            }
+        }
+
+        function renderFriendRequestsModal() {
+            console.log("Client: renderFriendRequestsModal - Rendering friend requests modal...");
+            // Incoming Requests
+            incomingRequestsList.innerHTML = '';
+            if (incomingFriendRequests.length === 0) {
+                noIncomingRequestsMsg.classList.remove('hidden');
+            } else {
+                noIncomingRequestsMsg.classList.add('hidden');
+                incomingFriendRequests.forEach(request => {
+                    const li = document.createElement('li');
+                    li.classList.add('request-item');
+                    li.textContent = `${request.username} wants to be friends.`;
+
+                    const acceptBtn = document.createElement('button');
+                    acceptBtn.textContent = 'Accept';
+                    acceptBtn.classList.add('accept-request-btn');
+                    acceptBtn.addEventListener('click', () => {
+                        console.log(`Client: Accepting request from ${request.username} (ID: ${request.id})`);
+                        socket.emit('respond_friend_request', { requestId: request.id, action: 'accept' })
+                    });
+
+                    const rejectBtn = document.createElement('button');
+                    rejectBtn.textContent = 'Reject';
+                    rejectBtn.classList.add('reject-request-btn');
+                    rejectBtn.addEventListener('click', () => {
+                        console.log(`Client: Rejecting request from ${request.username} (ID: ${request.id})`);
+                        socket.emit('respond_friend_request', { requestId: request.id, action: 'reject' })
+                    });
+
+                    li.appendChild(acceptBtn);
+                    li.appendChild(rejectBtn);
+                    incomingRequestsList.appendChild(li);
+                });
+            }
+
+            // Outgoing Requests
+            outgoingRequestsList.innerHTML = '';
+            if (outgoingFriendRequests.size === 0) {
+                noOutgoingRequestsMsg.classList.remove('hidden');
+            } else {
+                noOutgoingRequestsMsg.classList.add('hidden');
+                outgoingFriendRequests.forEach(username => {
+                    const li = document.createElement('li');
+                    li.classList.add('request-item', 'outgoing-request-item');
+                    li.textContent = `Pending request to ${username}.`;
+                    outgoingRequestsList.appendChild(li);
+                });
+            }
+
+            // Update badge
+            if (incomingFriendRequests.length > 0) {
+                friendRequestBadge.textContent = incomingFriendRequests.length;
+                friendRequestBadge.classList.remove('hidden');
+            } else {
+                friendRequestBadge.classList.add('hidden');
+            }
+        }
+
+
+        // --- Socket.IO Event Listeners ---
+
+        socket.on('connect', () => {
+            console.log('Client: Connected to chat server!');
+            // Request public chat history on connect (if not already loaded by initial chat history event)
+            if (activeChatRecipient === null && messagesDisplay.innerHTML === '') {
+                 socket.emit('request_public_chat_history');
+            }
+        });
+
+        socket.on('disconnect', () => {
+            console.log('Client: Disconnected from chat server.');
+            onlineUsers.clear();
+            friends.clear();
+            incomingFriendRequests = [];
+            outgoingFriendRequests = new Set(); // Reset to empty Set
+            renderUserLists();
+            renderFriendRequestsModal();
+        });
+
+        // Client's own username
+        socket.on('current_user_info', (data) => {
+            currentUsername = data.username;
+            console.log(`Client: Logged in as: ${currentUsername}`);
+            setChatMode(null); // Default to public chat on initial login
+        });
+
+        // Receive updated list of ALL online users (for 'other online users' list)
+        socket.on('online_users_list', (onlineUsernamesArray) => {
+            console.log(`Client: Received online users list:`, onlineUsernamesArray);
+            onlineUsers = new Set(onlineUsernamesArray);
+            renderUserLists();
+        });
+
+        // Receive updated friend list and pending requests
+        socket.on('friend_list_updated', (friendUsernamesArray) => {
+            console.log(`Client: Received updated friend list:`, friendUsernamesArray);
+            friends = new Set(friendUsernamesArray);
+            renderUserLists(); // Re-render user lists to update friend status
+            // If active chat recipient is no longer a friend, or is now a friend, update chat mode display
+            if (activeChatRecipient !== null) {
+                setChatMode(activeChatRecipient); // Re-evaluate DM status if friend status changed
+            }
+        });
+
+        socket.on('pending_requests_updated', (data) => {
+            console.log(`Client: Received updated pending requests. Incoming:`, data.incoming, `Outgoing:`, data.outgoing);
+            incomingFriendRequests = data.incoming;
+            outgoingFriendRequests = new Set(data.outgoing); // Convert to Set here
+            renderFriendRequestsModal();
+            renderUserLists(); // Rerender user lists to update button status if request sent/accepted
+        });
+
+        // Public chat message
+        socket.on('chat message', (msgData) => {
+            console.log(`Client: Received public chat message:`, msgData);
+            if (activeChatRecipient === null) {
+                addMessage(msgData, messagesDisplay);
+            } else {
+                console.log(`Client: Public message received but not displayed (in DM mode).`);
+            }
+        });
+
+        // Direct messages
+        socket.on('dm_message', (msgData) => {
+            console.log(`Client: Received DM message from ${msgData.sender} to ${msgData.recipient}:`, msgData);
+
+            // Determine who the other person in this DM is (the chat partner)
+            const chatPartnerUsername = (msgData.sender === currentUsername) ? msgData.recipient : msgData.sender;
+
+            // Store DM in history for the relevant chat partner
+            if (!dmHistory[chatPartnerUsername]) {
+                dmHistory[chatPartnerUsername] = [];
+            }
+            dmHistory[chatPartnerUsername].push(msgData);
+
+            // Display if this message is for the currently active chat
+            if (activeChatRecipient === chatPartnerUsername) {
+                addMessage(msgData, messagesDisplay);
+            } else {
+                console.log(`Client: DM from ${msgData.sender} to ${msgData.recipient} received for ${chatPartnerUsername} but not displayed (not active chat recipient).`);
+                // Optional: Show notification for new DM from non-active chat
+                // You could visually highlight the user in the online list or play a sound
+            }
+        });
+
+        // Initial chat history (public) - sent only once on connect
+        socket.on('chat history', (history) => {
+            console.log(`Client: Received initial chat history (${history.length} messages).`);
+            // Only clear and display if currently in public chat mode
+            if (activeChatRecipient === null) {
+                messagesDisplay.innerHTML = '';
+                history.forEach(msgData => addMessage(msgData, messagesDisplay));
+            } else {
+                console.log("Client: Received chat history, but not displaying because not in public chat mode.");
+            }
+        });
+
+        // Typing indicator
+        socket.on('typing status', (typingUsersMap) => {
+            // console.log(`Client: Received typing status:`, typingUsersMap); // Keep commented for less noise
+            let typingText = '';
+            let isAnyoneTyping = false;
+
+            if (activeChatRecipient === null) { // Public chat typing
+                const othersTyping = Object.keys(typingUsersMap).filter(user => user !== currentUsername && typingUsersMap[user].includes(null));
+                if (othersTyping.length > 0) {
+                    isAnyoneTyping = true;
+                    if (othersTyping.length === 1) {
+                        typingText = `${othersTyping[0]} is typing...`;
+                    } else if (othersTyping.length === 2) {
+                        typingText = `${othersTyping[0]} and ${othersTyping[1]} are typing...`;
+                    } else {
+                        typingText = `Multiple users are typing...`;
+                    }
+                }
+            } else { // Direct message typing
+                // Check if the specific recipient is typing to us (and they are indeed typing to our username)
+                if (typingUsersMap[activeChatRecipient] && typingUsersMap[activeChatRecipient].includes(currentUsername)) {
+                    isAnyoneTyping = true;
+                    typingText = `${activeChatRecipient} is typing...`;
+                }
+            }
+
+            typingIndicator.textContent = typingText;
+            typingIndicator.style.opacity = isAnyoneTyping ? '1' : '0';
+        });
+
+        // Friend request specific socket events
+        socket.on('friend_request_sent', (targetUsername) => {
+            alert(`Client: Friend request sent to ${targetUsername}!`);
+            console.log(`Client: Friend request sent confirmation for ${targetUsername}.`);
+        });
+        socket.on('friend_request_error', (message) => {
+            alert(`Client: Friend Request Error: ${message}`);
+            console.error(`Client: Friend Request Error: ${message}`);
+        });
+        socket.on('dm_error', (message) => {
+            alert(`Client: Direct Message Error: ${message}`);
+            console.error(`Client: Direct Message Error: ${message}`);
+        });
+
+
+        // --- UI Event Listeners ---
+
+        // Handle sending messages (public or DM)
+        chatForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const messageText = messageInput.value.trim();
+            if (messageText) {
+                if (activeChatRecipient === null) { // Public message
+                    console.log(`Client: Sending public chat message: "${messageText}"`);
+                    socket.emit('chat message', messageText);
+                } else { // Direct message
+                    // Only send if it's an accepted friend
+                    if (friends.has(activeChatRecipient)) {
+                        // Store own DM in history for immediate display
+                        const ownMsgData = {
+                            sender: currentUsername,
+                            recipient: activeChatRecipient, // Include recipient for consistency
+                            text: messageText,
+                            timestamp: new Date().toLocaleTimeString()
+                        };
+                        if (!dmHistory[activeChatRecipient]) {
+                            dmHistory[activeChatRecipient] = [];
+                        }
+                        dmHistory[activeChatRecipient].push(ownMsgData);
+                        addMessage(ownMsgData, messagesDisplay); // Display immediately
+
+                        console.log(`Client: Sending DM to ${activeChatRecipient}: "${messageText}"`);
+                        socket.emit('send_dm', {
+                            recipientUsername: activeChatRecipient,
+                            message: messageText
+                        });
+                    } else {
+                        alert('You can only send direct messages to accepted friends.');
+                        console.warn(`Client: DM attempt to non-friend ${activeChatRecipient} blocked.`);
+                    }
+                }
+                messageInput.value = ''; // Clear input field
+
+                if (isTyping) { // Always stop typing after sending
+                    socket.emit('typing', false, activeChatRecipient);
+                    isTyping = false;
+                    console.log(`Client: Stopped typing.`);
+                }
+            }
+        });
+
+        // Handle typing events
+        messageInput.addEventListener('input', () => {
+            if (messageInput.value.length > 0 && !isTyping) {
+                isTyping = true;
+                console.log(`Client: Started typing to ${activeChatRecipient === null ? 'public' : activeChatRecipient}`);
+                socket.emit('typing', true, activeChatRecipient); // Pass recipient for DM typing
+            }
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => {
+                if (isTyping) {
+                    isTyping = false;
+                    console.log(`Client: Stopped typing (timeout) to ${activeChatRecipient === null ? 'public' : activeChatRecipient}`);
+                    socket.emit('typing', false, activeChatRecipient);
+                }
+            }, 3000); // Stop typing after 3 seconds of inactivity
+        });
+
+        // --- Header Button Listeners ---
+        settingsBtn.addEventListener('click', () => {
+            alert('Settings page coming soon!');
+        });
+
+        publicChatBtn.addEventListener('click', () => {
+            setChatMode(null); // Explicitly set to public chat
+        });
+
+        friendRequestsBtn.addEventListener('click', () => {
+            friendRequestsModal.classList.remove('hidden');
+        });
+
+        closeButton.addEventListener('click', () => {
+            friendRequestsModal.classList.add('hidden');
+        });
+
+        // Close modal when clicking outside
+        window.addEventListener('click', (event) => {
+            if (event.target === friendRequestsModal) {
+                friendRequestsModal.classList.add('hidden');
+            }
+        });
+
+        // Modal tab switching
+        modalTabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                modalTabBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                incomingRequestsPanel.classList.add('hidden');
+                outgoingRequestsPanel.classList.add('hidden');
+
+                const targetTab = btn.dataset.tab;
+                if (targetTab === 'incoming') {
+                    incomingRequestsPanel.classList.remove('hidden');
+                } else {
+                    outgoingRequestsPanel.classList.remove('hidden');
+                }
+            });
+        });
+
+    </script>
+</body>
+</html>

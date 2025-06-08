@@ -1,0 +1,749 @@
+/* public/style.css - New layout and chat styles */
+
+:root {
+    /* Define your dark color palette with gradient considerations */
+    --color-dark-blue: #1A1A2E; /* Primary background */
+    --color-dark-purple: #0F0F1B; /* Deeper accent for gradients */
+    --color-medium-purple: #202038; /* Card background, also for chat area */
+    --color-light-purple: #32324A; /* Input background, also for sidebar */
+    --color-text-primary: #E0E0E0; /* Light gray for general text */
+    --color-text-accent: #BB86FC; /* Brighter purple for headings/accents */
+    --color-border: #4A4A6E; /* Border color */
+    --color-button-primary: #6200EE; /* Primary button color */
+    --color-button-hover: #7F39FB; /* Button hover color */
+    --color-link: #BB86FC; /* Link color */
+    --color-link-hover: #CFB8FC; /* Link hover color */
+    --color-error: #CF6679; /* Red for error messages */
+
+    /* Gradients */
+    --gradient-background: linear-gradient(135deg, var(--color-dark-blue) 0%, var(--color-dark-purple) 100%);
+    --gradient-button: linear-gradient(45deg, var(--color-button-primary), #9040F5);
+    --gradient-button-hover: linear-gradient(45deg, var(--color-button-hover), #A050FF);
+    --gradient-send-button: linear-gradient(45deg, #27AE60, #2ECC71); /* Green for send */
+    --gradient-send-button-hover: linear-gradient(45deg, #2ECC71, #27AE60);
+    --gradient-logout-button: linear-gradient(45deg, #e74c3c, #c0392b); /* Red for logout */
+    --gradient-logout-button-hover: linear-gradient(45deg, #c0392b, #e74c3c);
+
+    /* Friend request button gradients */
+    --gradient-add-friend: linear-gradient(45deg, #3498db, #2980b9); /* Blue for add friend */
+    --gradient-add-friend-hover: linear-gradient(45deg, #2980b9, #3498db);
+    --gradient-accept: linear-gradient(45deg, #28a745, #218838); /* Green for accept */
+    --gradient-accept-hover: linear-gradient(45deg, #218838, #28a745);
+    --gradient-reject: linear-gradient(45deg, #dc3545, #c82333); /* Red for reject */
+    --gradient-reject-hover: linear-gradient(45deg, #c82333, #dc3545);
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: var(--gradient-background);
+    background-attachment: fixed;
+    color: var(--color-text-primary);
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+    box-sizing: border-box;
+    overflow: hidden; /* Prevent body scroll, app-wrapper handles it */
+}
+
+/* --- General Container for Login/Register --- */
+/* The .container class is still used for login/register pages */
+.container {
+    background-color: var(--color-medium-purple);
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+    box-sizing: border-box;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+h1 {
+    color: var(--color-text-accent);
+    margin-bottom: 30px;
+    font-size: 2.4em;
+    letter-spacing: 0.05em;
+}
+
+.form-group {
+    margin-bottom: 25px;
+    text-align: left;
+}
+
+label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+input[type="text"],
+input[type="password"] {
+    width: calc(100% - 24px); /* Account for padding and border */
+    padding: 14px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background-color: var(--color-light-purple);
+    color: var(--color-text-primary);
+    font-size: 1.1em;
+    outline: none;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+input[type="text"]:focus,
+input[type="password"]:focus {
+    border-color: var(--color-text-accent);
+    box-shadow: 0 0 0 3px rgba(187, 134, 252, 0.3);
+}
+
+button[type="submit"] { /* General button style for login/register */
+    background: var(--gradient-button);
+    color: white;
+    padding: 15px 28px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1.15em;
+    font-weight: bold;
+    letter-spacing: 0.03em;
+    transition: background 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+    width: 100%;
+    margin-top: 15px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+button[type="submit"]:hover {
+    background: var(--gradient-button-hover);
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+button[type="submit"]:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.switch-page-link {
+    margin-top: 35px;
+    font-size: 1em;
+    color: var(--color-text-primary);
+}
+
+.switch-page-link a {
+    color: var(--color-link);
+    text-decoration: none;
+    font-weight: bold;
+    transition: color 0.3s ease, text-decoration 0.3s ease;
+}
+
+.switch-page-link a:hover {
+    color: var(--color-link-hover);
+    text-decoration: underline;
+}
+
+.error-message {
+    color: var(--color-error);
+    margin-top: 15px;
+    font-size: 0.9em;
+    font-weight: bold;
+}
+
+/* --- New App Layout for home.html --- */
+.app-wrapper {
+    display: flex;
+    flex-direction: column;
+    background-color: var(--color-medium-purple);
+    border-radius: 12px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+    width: 100%;
+    max-width: 1000px; /* Max width for the whole app */
+    height: 90vh; /* Fill most of the viewport height */
+    overflow: hidden; /* Contains internal scrolling */
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 25px;
+    background: linear-gradient(90deg, var(--color-dark-blue), var(--color-medium-purple));
+    border-bottom: 1px solid var(--color-border);
+    color: var(--color-text-primary);
+}
+
+.app-header h1 {
+    margin: 0;
+    font-size: 1.8em;
+    color: var(--color-text-accent);
+    letter-spacing: 0.03em;
+}
+
+.header-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.header-btn {
+    padding: 8px 15px;
+    border: none;
+    border-radius: 6px;
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--color-text-primary);
+    cursor: pointer;
+    font-size: 0.9em;
+    font-weight: 500;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    text-decoration: none; /* For anchor tags styled as buttons */
+    display: inline-flex; /* Align icon and text */
+    align-items: center;
+    justify-content: center;
+    position: relative; /* For badge positioning */
+}
+
+.header-btn:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-1px);
+}
+
+.header-btn.icon-btn {
+    padding: 8px 12px; /* Adjust padding for icon-only buttons */
+    font-size: 1.2em; /* Larger icon */
+}
+
+.header-btn.action-btn { /* Logout button */
+    background: var(--gradient-logout-button);
+}
+
+.header-btn.action-btn:hover {
+    background: var(--gradient-logout-button-hover);
+}
+
+.header-btn.active {
+    background-color: var(--color-button-primary); /* Highlight active public chat button */
+    color: white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+.header-btn.active:hover {
+    background-color: var(--color-button-hover);
+}
+
+/* Badge for friend requests */
+.badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background-color: var(--color-error); /* Red for notification */
+    color: white;
+    border-radius: 50%;
+    padding: 3px 7px;
+    font-size: 0.7em;
+    font-weight: bold;
+    min-width: 15px;
+    text-align: center;
+    box-shadow: 0 0 5px rgba(0,0,0,0.5);
+}
+.badge.hidden {
+    display: none;
+}
+
+
+.chat-main {
+    display: flex;
+    flex-grow: 1; /* Allows main content to fill remaining height */
+    overflow: hidden; /* Contains internal scrolling areas */
+}
+
+.sidebar {
+    width: 250px; /* Fixed width for sidebar */
+    background-color: var(--color-light-purple);
+    padding: 20px;
+    border-right: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0; /* Prevents sidebar from shrinking */
+    overflow-y: auto; /* Scroll for user list */
+}
+
+.sidebar h2 {
+    color: var(--color-text-accent);
+    font-size: 1.3em;
+    margin-top: 0;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.user-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 20px 0; /* Margin between lists */
+}
+
+.user-list-item {
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: space-between; /* Space out username and button */
+    gap: 10px;
+}
+
+.user-list-item:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+    transform: translateX(3px);
+}
+
+.user-list-item.active-chat {
+    background-color: var(--color-button-primary);
+    color: white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+.user-list-item.active-chat:hover {
+    background-color: var(--color-button-hover);
+}
+
+.user-list-item.friend-item.online {
+    color: #4CAF50; /* Green color for online friends */
+    position: relative;
+}
+.user-list-item.friend-item.online::before {
+    content: '';
+    display: block;
+    width: 8px;
+    height: 8px;
+    background-color: #4CAF50;
+    border-radius: 50%;
+    position: absolute;
+    left: 5px;
+    top: 50%;
+    transform: translateY(-50%);
+    box-shadow: 0 0 5px #4CAF50;
+}
+.user-list-item.friend-item.online span {
+    margin-left: 15px; /* Adjust text for dot */
+}
+
+/* No users/requests message */
+.no-users-msg {
+    color: #999;
+    font-style: italic;
+    padding: 10px;
+    text-align: center;
+}
+
+
+/* Send Request button */
+.send-request-btn {
+    background: var(--gradient-add-friend);
+    color: white;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 0.8em;
+    cursor: pointer;
+    transition: background 0.2s ease;
+    flex-shrink: 0;
+}
+.send-request-btn:hover {
+    background: var(--gradient-add-friend-hover);
+}
+.send-request-btn:disabled {
+    background-color: #555;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+
+.chat-area {
+    flex-grow: 1; /* Chat area takes remaining space */
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    position: relative; /* For typing indicator absolute positioning */
+}
+
+.chat-area h2 {
+    color: var(--color-text-accent);
+    font-size: 1.5em;
+    margin-top: 0;
+    margin-bottom: 20px;
+    text-align: center;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.chat-messages {
+    flex-grow: 1;
+    background-color: rgba(0, 0, 0, 0.2); /* Slightly transparent background for messages */
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--color-border);
+}
+
+.chat-message-item {
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    background-color: rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    word-wrap: break-word;
+    max-width: 85%; /* Limit width for better reading */
+    align-self: flex-start; /* Default align to left */
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.chat-message-item.my-message {
+    background-color: rgba(187, 134, 252, 0.2); /* Different color for own messages */
+    align-self: flex-end; /* Align own messages to right */
+    border-bottom-right-radius: 2px; /* Slight corner adjustment for own message */
+}
+.chat-message-item:not(.my-message) {
+     border-bottom-left-radius: 2px;
+}
+
+
+.message-user {
+    font-weight: bold;
+    color: var(--color-text-accent);
+    margin-right: 5px;
+    display: block; /* Username on its own line */
+    margin-bottom: 3px;
+}
+
+.chat-message-item.my-message .message-user {
+    color: var(--color-link-hover); /* Slightly different color for own username */
+}
+
+
+.message-text {
+    color: var(--color-text-primary);
+    font-size: 0.95em;
+}
+
+.message-timestamp {
+    font-size: 0.7em;
+    color: #999;
+    margin-left: 8px;
+    display: block; /* Timestamp on its own line */
+    text-align: right;
+    margin-top: 5px;
+}
+
+.chat-input-form {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+}
+
+.chat-input-form input {
+    flex-grow: 1;
+    width: auto;
+    padding: 12px 15px;
+    border-radius: 25px;
+    border: 1px solid var(--color-border);
+    background-color: var(--color-light-purple);
+    color: var(--color-text-primary);
+    font-size: 1em;
+    outline: none;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.chat-input-form input:focus {
+    border-color: var(--color-text-accent);
+    box-shadow: 0 0 0 3px rgba(187, 134, 252, 0.3);
+}
+.chat-input-form input:disabled {
+    background-color: #555;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+
+.chat-input-form button {
+    width: auto;
+    padding: 12px 25px;
+    border-radius: 25px;
+    font-size: 1em;
+    margin-top: 0;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    background: var(--gradient-send-button);
+}
+
+.chat-input-form button:hover {
+    background: var(--gradient-send-button-hover);
+    transform: translateY(-1px);
+}
+.chat-input-form button:disabled {
+    background-color: #555;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.typing-indicator {
+    height: 20px;
+    font-size: 0.9em;
+    color: #999;
+    text-align: left;
+    margin-bottom: 10px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    padding-left: 10px;
+    position: absolute; /* Position relative to chat-area */
+    bottom: 75px; /* Adjust based on input height */
+    left: 20px;
+    right: 20px;
+    background-color: rgba(32, 32, 56, 0.7); /* Match card background with transparency */
+    padding: 5px 10px;
+    border-radius: 5px;
+    z-index: 10; /* Ensure it's above other elements if needed */
+}
+
+.dm-status-message {
+    background-color: rgba(255, 165, 0, 0.2); /* Orange transparent */
+    color: orange;
+    padding: 10px;
+    border-radius: 5px;
+    text-align: center;
+    margin-top: 10px;
+    font-size: 0.9em;
+}
+.dm-status-message.hidden {
+    display: none;
+}
+
+
+/* --- Modal Styles (for Friend Requests) --- */
+.modal {
+    position: fixed;
+    z-index: 1000; /* High z-index to cover everything */
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.6); /* Semi-transparent black background */
+    display: flex; /* Use flex to center content */
+    align-items: center;
+    justify-content: center;
+}
+.modal.hidden {
+    display: none;
+}
+
+.modal-content {
+    background-color: var(--color-medium-purple);
+    margin: auto;
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.7);
+    width: 90%;
+    max-width: 500px;
+    position: relative;
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border);
+}
+
+.close-button {
+    color: var(--color-text-primary);
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+.close-button:hover,
+.close-button:focus {
+    color: var(--color-error);
+}
+
+.modal-content h3 {
+    color: var(--color-text-accent);
+    margin-top: 0;
+    margin-bottom: 20px;
+    text-align: center;
+    font-size: 1.6em;
+}
+
+.modal-tabs {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--color-border);
+}
+.modal-tab-btn {
+    background: none;
+    border: none;
+    color: var(--color-text-primary);
+    padding: 10px 20px;
+    cursor: pointer;
+    font-size: 1.1em;
+    font-weight: bold;
+    transition: color 0.2s ease, border-bottom 0.2s ease;
+    border-bottom: 3px solid transparent;
+}
+.modal-tab-btn:hover {
+    color: var(--color-link-hover);
+}
+.modal-tab-btn.active {
+    color: var(--color-text-accent);
+    border-bottom: 3px solid var(--color-text-accent);
+}
+
+.modal-panel {
+    max-height: 300px; /* Limit height of panel */
+    overflow-y: auto;
+    padding-right: 10px; /* For scrollbar */
+}
+.modal-panel.hidden {
+    display: none;
+}
+
+.request-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.request-item {
+    background-color: var(--color-light-purple);
+    padding: 12px 15px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+}
+.request-item.outgoing-request-item {
+    justify-content: center; /* Center text for outgoing */
+}
+
+.request-item button {
+    border: none;
+    padding: 8px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 0.9em;
+    transition: transform 0.1s ease, background 0.2s ease;
+}
+.accept-request-btn {
+    background: var(--gradient-accept);
+    color: white;
+}
+.accept-request-btn:hover {
+    background: var(--gradient-accept-hover);
+    transform: translateY(-1px);
+}
+.reject-request-btn {
+    background: var(--gradient-reject);
+    color: white;
+}
+.reject-request-btn:hover {
+    background: var(--gradient-reject-hover);
+    transform: translateY(-1px);
+}
+
+.no-requests-msg {
+    color: #999;
+    font-style: italic;
+    text-align: center;
+    margin-top: 20px;
+}
+
+
+/* --- Responsive Adjustments --- */
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+    .app-wrapper {
+        height: 98vh; /* More height on smaller screens */
+        border-radius: 8px;
+    }
+    .app-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 10px 15px;
+    }
+    .app-header h1 {
+        font-size: 1.5em;
+    }
+    .header-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+    .chat-main {
+        flex-direction: column; /* Stack sidebar and chat area */
+    }
+    .sidebar {
+        width: 100%;
+        max-height: 200px; /* Limit sidebar height when stacked */
+        border-right: none;
+        border-bottom: 1px solid var(--color-border);
+        padding: 15px;
+    }
+    .sidebar h2 {
+        font-size: 1.1em;
+        margin-bottom: 10px;
+    }
+    .chat-area {
+        padding: 15px;
+    }
+    .chat-area h2 {
+        font-size: 1.3em;
+        margin-bottom: 15px;
+    }
+    .chat-messages {
+        padding: 10px;
+    }
+    .chat-input-form input,
+    .chat-input-form button {
+        padding: 10px 15px;
+        font-size: 0.95em;
+    }
+    .typing-indicator {
+        bottom: 65px; /* Adjust for smaller input */
+    }
+}
+
+@media (max-width: 600px) {
+    /* Login/Register page adjustments */
+    .container {
+        padding: 30px 20px;
+        margin: 0 15px;
+        border-radius: 10px;
+    }
+    h1 {
+        font-size: 1.8em;
+    }
+    button[type="submit"] {
+        padding: 12px 20px;
+        font-size: 1em;
+    }
+    .modal-content {
+        padding: 15px;
+    }
+    .modal-content h3 {
+        font-size: 1.4em;
+    }
+}
