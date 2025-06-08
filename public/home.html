@@ -477,10 +477,13 @@
         // --- UI Event Listeners ---
 
         // Handle sending messages (public or DM)
-        chatForm.addEventListener('submit', (e) => {
+      chatForm.addEventListener('submit', (e) => {
             e.preventDefault();
             const messageText = messageInput.value.trim();
             if (messageText) {
+                // *** ADD THIS LINE HERE ***
+                console.log(`Client: Submitting message. activeChatRecipient at this moment is:`, activeChatRecipient);
+
                 if (activeChatRecipient === null) { // Public message
                     console.log(`Client: Sending public chat message: "${messageText}"`);
                     socket.emit('chat message', messageText);
@@ -519,6 +522,16 @@
                 }
             }
         });
+
+        // Also, ensure this is added to your setChatMode function as well:
+        function setChatMode(recipientUsername) {
+            const oldRecipient = activeChatRecipient;
+            activeChatRecipient = recipientUsername;
+            console.log(`Client: setChatMode called. Changing chat mode from ${oldRecipient === null ? 'Public' : oldRecipient} to ${activeChatRecipient === null ? 'Public' : activeChatRecipient}`);
+
+            messagesDisplay.innerHTML = ''; // Clear current messages
+            // ... rest of your setChatMode function ...
+        }
 
         // Handle typing events
         messageInput.addEventListener('input', () => {
