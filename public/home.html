@@ -122,7 +122,7 @@
 
         // --- Helper Functions ---
 
-        function addMessage(msgData, displayElement) {
+      function addMessage(msgData, displayElement) {
             console.log("Client: addMessage - Adding message to display:", msgData);
             const messageItem = document.createElement('div');
             messageItem.classList.add('message-item');
@@ -143,10 +143,21 @@
 
             messageItem.appendChild(messageBubble);
             messageItem.appendChild(messageInfo);
+
+            // --- NEW LOGIC FOR SCROLLING ---
+            // Check if the user is near the bottom before adding the new message
+            // A tolerance of +1 or +5 pixels is often used for floating point inaccuracies
+            const isAtBottom = displayElement.scrollHeight - displayElement.scrollTop <= displayElement.clientHeight + 5;
+
+            // Append the message
             displayElement.appendChild(messageItem);
 
-            // Scroll to bottom
-            displayElement.scrollTop = displayElement.scrollHeight;
+            // Only scroll to bottom if the user was already at the bottom
+            if (isAtBottom) {
+                setTimeout(() => {
+                    displayElement.scrollTop = displayElement.scrollHeight;
+                }, 0); // Use 0ms timeout to defer until after browser repaint
+            }
         }
 
         // Function to switch chat mode (Public Chat or DM)
@@ -200,7 +211,9 @@
                     badge.style.display = 'none';
                 }
             }
-            messagesDisplay.scrollTop = messagesDisplay.scrollHeight; // Scroll to bottom on mode switch
+            setTimeout(() => {
+                messagesDisplay.scrollTop = messagesDisplay.scrollHeight;
+            }, 0);
         }
 
         function renderUserLists() {

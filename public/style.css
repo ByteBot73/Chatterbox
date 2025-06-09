@@ -36,13 +36,19 @@
 }
 
 html, body {
-    height: 100%;
-    font-family: 'Roboto', sans-serif; /* Using Roboto as per your link */
-    color: var(--text-light);
-    background-color: var(--bg-primary);
-    overflow: hidden; /* Prevent body scrollbars; grid areas will handle their own scrolling */
+    margin: 0;
+    padding: 0;
+    height: 100%; 
+    width: 100%;
+    
+    overflow-x: hidden; 
+    overflow-y: hidden;
+    
+    /* Inherit global styles if not already set */
+    font-family: 'Roboto', sans-serif;
+    background-color: var(--bg-primary); 
+    color: var(--text-light); /* Use variable for consistency */
 }
-
 /* --- General Link, Button, and Input Styling --- */
 a {
     color: var(--accent-purple);
@@ -62,6 +68,7 @@ button {
     border-radius: 5px;
     font-weight: 500; /* Roboto medium */
     color: var(--text-light);
+    background-color: unset; /* Ensure default buttons don't have a background if not specified */
     transition: background-color 0.2s ease, filter 0.2s ease;
     white-space: nowrap; /* Prevent button text from wrapping */
 }
@@ -98,7 +105,7 @@ textarea:focus {
 }
 
 /* --- Login/Register Page Specifics (Updated to match your HTML) --- */
-body:has(.container) { /* Apply these styles only when .container is present directly under body */
+body:has(.container) { 
     display: flex;
     justify-content: center;
     align-items: center;
@@ -173,12 +180,11 @@ body:has(.container) { /* Apply these styles only when .container is present dir
 
 /* --- Main Chat Layout (home.html) --- */
 body:not(:has(.container)) { /* Apply these styles only when .container is NOT present */
-    display: grid;
-    grid-template-columns: 280px 1fr; /* Sidebar width from images, chat takes rest */
-    grid-template-rows: 1fr; /* Single row taking full height */
-    height: 100vh;
+    display: flex; /* CHANGED: Use flexbox for main horizontal split */
+    /* REMOVED: grid-template-columns and grid-template-rows */
+    height: 100vh; /* Ensure body takes full viewport height */
     background-color: var(--bg-primary); /* Ensures whole body is dark */
-    overflow: hidden; /* Prevent body scrollbars for chat layout */
+    overflow: hidden; /* Prevents body scrollbars for the main chat layout, children will manage scroll */
 }
 
 
@@ -191,6 +197,8 @@ body:not(:has(.container)) { /* Apply these styles only when .container is NOT p
     overflow-y: auto; /* Enable scrolling for sidebar content */
     padding-bottom: var(--spacing-md);
     box-shadow: 2px 0 8px var(--shadow-light);
+    flex-shrink: 0; /* Ensures sidebar doesn't shrink */
+    width: 280px; /* Consistent sidebar width */
 }
 
 .sidebar h2 { /* "Chat App" title */
@@ -331,6 +339,9 @@ body:not(:has(.container)) { /* Apply these styles only when .container is NOT p
     display: flex;
     flex-direction: column; /* Stacks header, messages, input vertically */
     background-color: var(--bg-primary); /* Main chat background */
+    flex-grow: 1; /* NEW: Allows chat-container to take all remaining horizontal space */
+    height: 100%; /* NEW: CRITICAL: Ensures chat-container fills 100% of its flex parent's (body's) height */
+    /* REMOVED any potentially conflicting fixed height or grid properties */
 }
 
 .chat-header {
@@ -340,11 +351,12 @@ body:not(:has(.container)) { /* Apply these styles only when .container is NOT p
     font-size: 1.3rem;
     font-weight: 700;
     color: var(--text-light);
-    display: flex; /* To align header text and typing indicator */
+    display: flex;
     justify-content: space-between;
     align-items: center;
     text-align: center;
     box-shadow: 0 2px 5px var(--shadow-light);
+    flex-shrink: 0; /* Prevent header from shrinking */
 }
 
 #chatHeader {
@@ -371,6 +383,9 @@ body:not(:has(.container)) { /* Apply these styles only when .container is NOT p
     display: flex;
     flex-direction: column;
     gap: var(--spacing-sm); /* Spacing between message items */
+    /* Explicitly limit its maximum height and allow shrinking (already present, good) */
+    max-height: 100%; 
+    min-height: 0;
 }
 
 /* --- Message Styling (Crucially adapted to your HTML) --- */
@@ -425,6 +440,7 @@ body:not(:has(.container)) { /* Apply these styles only when .container is NOT p
     align-items: center;
     gap: var(--spacing-sm);
     box-shadow: 0 -2px 5px var(--shadow-light);
+    flex-shrink: 0; /* Prevent input area from shrinking */
 }
 
 #messageInput { /* Your input field */
@@ -584,4 +600,112 @@ body:not(:has(.container)) { /* Apply these styles only when .container is NOT p
 
 ::-webkit-scrollbar-thumb:hover {
     background: #55555a;
+}
+
+/* --- Responsive Adjustments --- */
+
+/* For screens smaller than, say, 768px (common tablet portrait breakpoint) */
+@media (max-width: 768px) {
+    /* Main Chat Layout */
+    body:not(:has(.container)) {
+        /* On small screens, stack content vertically, no fixed sidebar */
+        flex-direction: column; /* CHANGED: Stack sidebar and chat vertically */
+        /* REMOVED: grid-template-columns / grid-template-rows from here */
+        height: 100vh; /* Keep full viewport height */
+        overflow-y: auto; /* Allow the whole page to scroll if content too tall */
+    }
+
+    /* Adjust sidebar display for small screens */
+    .sidebar {
+        width: 100%; /* Sidebar takes full width */
+        border-right: none; /* No vertical border */
+        border-bottom: 1px solid var(--border-color); /* Add bottom border */
+        box-shadow: 0 2px 8px var(--shadow-light); /* Shadow at bottom */
+        flex-shrink: 0; /* Ensure it doesn't shrink */
+        order: -1; /* Place sidebar at the top in column layout */
+    }
+
+    /* Adjust chat container for full width */
+    .chat-container {
+        width: 100%; /* Chat container takes full width */
+        flex-grow: 1; /* Allow it to take remaining vertical space */
+        height: auto; /* Allow height to be determined by content and flex-grow */
+    }
+
+    /* Adjust chat header for full width */
+    .chat-header {
+        padding: var(--spacing-md); /* Slightly less padding */
+        font-size: 1.1rem;
+    }
+
+    /* Adjust messages display padding */
+    .messages-display {
+        padding: var(--spacing-md);
+    }
+
+    /* Adjust message item max-width for better use of small screen space */
+    .message-item {
+        max-width: 85%; /* Allow messages to take up more width on small screens */
+    }
+
+    /* Adjust chat input area for smaller screens */
+    .chat-input-area {
+        flex-direction: row; /* Keep input and button side-by-side if space allows */
+        padding: var(--spacing-md);
+        gap: var(--spacing-sm);
+    }
+
+    #messageInput {
+        padding: 10px 15px; /* Slightly smaller padding */
+        font-size: 0.95rem;
+        min-height: 40px; /* Adjust min-height */
+    }
+
+    .chat-input-area button[type="submit"] {
+        padding: 10px 20px; /* Smaller button padding */
+        font-size: 0.95rem;
+    }
+
+    /* Login/Register Page Specifics for small screens */
+    body:has(.container) {
+        padding: var(--spacing-md);
+    }
+    .container {
+        padding: var(--spacing-lg) var(--spacing-xl);
+        max-width: 100%; /* Allow container to take full width on very small screens */
+    }
+    .container h1 {
+        font-size: 1.8rem;
+    }
+    .form-group input {
+        padding: 12px 15px;
+        font-size: 1rem;
+    }
+    .container button[type="submit"] {
+        padding: 12px;
+        font-size: 1rem;
+    }
+    .switch-page-link {
+        font-size: 0.9rem;
+    }
+
+    /* Modals for small screens */
+    .modal-content {
+        width: 95%; /* Wider modal on small screens */
+        padding: var(--spacing-lg);
+    }
+    .modal-content h3 {
+        font-size: 1.5rem;
+    }
+    .close-button {
+        font-size: 28px;
+        top: 10px;
+        right: 15px;
+    }
+}
+
+@media (max-width: 1024px) {
+    body:not(:has(.container)) {
+        grid-template-columns: 220px 1fr;
+    }
 }
