@@ -22,11 +22,19 @@
 
         <div class="user-list-section">
             <h3>Online Friends</h3>
-            <ul id="friendList" class="user-list">
+            <ul id="onlineFriendList" class="user-list">
+                </ul>
+
+            <h3>Offline Friends</h3>
+            <ul id="offlineFriendList" class="user-list">
                 </ul>
 
             <h3>Other Online Users</h3>
             <ul id="otherOnlineUsersList" class="user-list">
+                </ul>
+
+            <h3>Other Offline Users</h3>
+            <ul id="otherOfflineUsersList" class="user-list">
                 </ul>
         </div>
 
@@ -79,12 +87,17 @@
 
         const currentUsernameDisplay = document.getElementById('currentUsernameDisplay');
         const publicChatBtn = document.getElementById('publicChatBtn');
-        // const friendsBtn = document.getElementById('friendsBtn');
+        const friendsBtn = document.getElementById('friendsBtn'); // Assuming this button is still present in your HTML
         const addFriendBtn = document.getElementById('addFriendBtn');
         const pendingRequestsBtn = document.getElementById('pendingRequestsBtn');
         const pendingRequestsBadge = document.getElementById('pendingRequestsBadge');
-        const friendList = document.getElementById('friendList');
+
+        // UPDATED: New list element references
+        const onlineFriendList = document.getElementById('onlineFriendList');
+        const offlineFriendList = document.getElementById('offlineFriendList');
         const otherOnlineUsersList = document.getElementById('otherOnlineUsersList');
+        const otherOfflineUsersList = document.getElementById('otherOfflineUsersList'); // New
+
         const logoutBtn = document.getElementById('logoutBtn');
 
         const chatHeader = document.getElementById('chatHeader');
@@ -105,7 +118,7 @@
 
         let currentUsername = ''; // Stores the current user's username
         let onlineUsers = new Set(); // Stores online usernames received from server (all online users)
-        let friends = new Set(); // Stores accepted friend usernames for the current user
+        let friends = new Set(); // Stores accepted friend usernames for the current user (should contain ALL accepted friends)
         let incomingPendingRequests = new Map(); // Stores incoming pending requests: Map<requestId, senderUsername>
         let outgoingPendingRequests = new Set(); // Stores outgoing pending requests: Set<receiverUsername>
 
@@ -122,7 +135,7 @@
 
         // --- Helper Functions ---
 
-      function addMessage(msgData, displayElement) {
+        function addMessage(msgData, displayElement) {
             console.log("Client: addMessage - Adding message to display:", msgData);
             const messageItem = document.createElement('div');
             messageItem.classList.add('message-item');
@@ -170,8 +183,12 @@
 
             // Update header and button styles
             publicChatBtn.classList.remove('active', 'selected');
-            Array.from(friendList.children).forEach(li => li.classList.remove('selected'));
+            
+            // UPDATED: Remove 'selected' from all potential user list items
+            Array.from(onlineFriendList.children).forEach(li => li.classList.remove('selected'));
+            Array.from(offlineFriendList.children).forEach(li => li.classList.remove('selected'));
             Array.from(otherOnlineUsersList.children).forEach(li => li.classList.remove('selected'));
+            Array.from(otherOfflineUsersList.children).forEach(li => li.classList.remove('selected'));
 
 
             if (activeChatRecipient === null) {
@@ -184,15 +201,16 @@
             } else {
                 // Direct Message Mode
                 chatHeader.textContent = `Chat with ${activeChatRecipient}`;
-                // Highlight the selected friend/user in the sidebar
-                const friendLi = document.querySelector(`#friendList li[data-username="${activeChatRecipient}"]`);
-                if (friendLi) {
-                    friendLi.classList.add('selected');
-                } else {
-                    const otherUserLi = document.querySelector(`#otherOnlineUsersList li[data-username="${activeChatRecipient}"]`);
-                    if (otherUserLi) {
-                        otherUserLi.classList.add('selected');
-                    }
+                
+                // UPDATED: Highlight the selected friend/user in any of the sidebar lists
+                const selectedLi = document.querySelector(
+                    `#onlineFriendList li[data-username="${activeChatRecipient}"], ` +
+                    `#offlineFriendList li[data-username="${activeChatRecipient}"], ` +
+                    `#otherOnlineUsersList li[data-username="${activeChatRecipient}"], ` +
+                    `#otherOfflineUsersList li[data-username="${activeChatRecipient}"]`
+                );
+                if (selectedLi) {
+                    selectedLi.classList.add('selected');
                 }
 
                 // --- NEW: Request DM history when switching to a DM chat ---
@@ -206,7 +224,7 @@
                 history.forEach(msg => addMessage(msg, messagesDisplay));
 
                 // Remove the unread badge immediately since the chat is now open
-                const badge = friendLi ? friendLi.querySelector('.dm-badge') : null;
+                const badge = selectedLi ? selectedLi.querySelector('.dm-badge') : null; // Use selectedLi
                 if (badge) {
                     badge.style.display = 'none';
                 }
@@ -216,101 +234,177 @@
             }, 0);
         }
 
+        // UPDATED: renderUserLists function
         function renderUserLists() {
-            friendList.innerHTML = '';
+            // Clear all lists first
+            onlineFriendList.innerHTML = '';
+            offlineFriendList.innerHTML = '';
             otherOnlineUsersList.innerHTML = '';
+            otherOfflineUsersList.innerHTML = ''; // Clear new offline list
 
             const onlineFriends = new Set();
+            const offlineFriends = new Set(); // New
             const onlineOtherUsers = new Set();
+            const offlineOtherUsers = new Set(); // New (will largely depend on server data)
 
-            onlineUsers.forEach(username => {
-                if (friends.has(username)) {
+            // Categorize friends based on their online status
+            // Iterate over ALL friends (from the `friends` Set, which should contain all accepted friends)
+            friends.forEach(username => {
+                if (onlineUsers.has(username)) {
                     onlineFriends.add(username);
-                } else if (username !== currentUsername) { // Exclude self from other online users
+                } else {
+                    offlineFriends.add(username); // Friend is not in onlineUsers set, so they are offline
+                }
+            });
+
+            // Categorize "Other Online Users"
+            // These are users who are online, but not friends, and not the current user.
+            onlineUsers.forEach(username => {
+                if (!friends.has(username) && username !== currentUsername) {
+                    // Only show users who are not already friends, and for whom no request is pending
+                    // The request pending checks will happen inside createUserListItem for 'Other Online Users'
                     onlineOtherUsers.add(username);
                 }
             });
 
+            // To populate 'Other Offline Users', you would ideally need a list of *all* registered users
+            // from the server. Your current setup only gives you 'onlineUsers' and 'friends'.
+            // Without a full list of all registered users (online or offline, friend or not),
+            // this section will likely remain empty or incomplete, as we can't reliably
+            // determine who "Other Offline Users" are if they're not in your friends list.
+            // If your server later provides a 'all_registered_users_list' event, we can update this.
+
             console.log("Client: renderUserLists - Friends (from server):", Array.from(friends));
             console.log("Client: renderUserLists - Online Users (from server):", Array.from(onlineUsers));
             console.log("Client: renderUserLists - Online Friends (calculated):", Array.from(onlineFriends));
+            console.log("Client: renderUserLists - Offline Friends (calculated):", Array.from(offlineFriends));
             console.log("Client: renderUserLists - Other Online Users (calculated):", Array.from(onlineOtherUsers));
+            console.log("Client: renderUserLists - Other Offline Users (calculated):", Array.from(offlineOtherUsers));
 
 
-            // Render Friends List
-            if (friends.size === 0) {
+            // Helper function to create a user list item (DRY principle: Don't Repeat Yourself)
+            function createUserListItem(username, isOnline, targetList) {
                 const li = document.createElement('li');
-                li.textContent = "No friends yet.";
-                li.style.color = "#7f8c8d";
-                friendList.appendChild(li);
-            } else {
-                friends.forEach(username => {
-                    const li = document.createElement('li');
-                    li.setAttribute('data-username', username);
-                    li.innerHTML = `<span class="username">${username}</span> <span class="online-status"></span>`;
+                li.setAttribute('data-username', username);
+                li.innerHTML = `<span class="username">${username}</span> <span class="online-status"></span>`;
 
-                    if (onlineFriends.has(username)) {
-                        li.querySelector('.online-status').classList.add('online'); // Visually indicate if friend is online
+                if (isOnline) {
+                    li.querySelector('.online-status').classList.add('online'); // Green dot for online
+                }
+                // (Offline status: no 'online' class, uses default grey dot from CSS)
+
+                // Add DM badge logic (same as before)
+                const unreadDMsForFriend = dmHistory[username]?.some(msg =>
+                    msg.sender !== currentUsername && !msg.read
+                );
+
+                if (unreadDMsForFriend && activeChatRecipient !== username) {
+                    let badge = li.querySelector('.dm-badge');
+                    if (!badge) {
+                        badge = document.createElement('span');
+                        badge.classList.add('dm-badge');
+                        li.appendChild(badge);
                     }
-
-                    // --- Updated: Add DM badge if there's unread DM for this friend ---
-                    // A message is "unread" if it's in dmHistory, its 'read' property is false (from server),
-                    // and it's from the other person (sender !== currentUsername).
-                    // We also only want to show the badge if the chat with them is NOT currently open.
-                    const unreadDMsForFriend = dmHistory[username]?.some(msg =>
-                        msg.sender !== currentUsername && !msg.read // Assuming 'read' property exists from server for unread DMs
-                    );
-
-                    if (unreadDMsForFriend && activeChatRecipient !== username) {
-                        let badge = li.querySelector('.dm-badge');
-                        if (!badge) { // Create badge if it doesn't exist
-                            badge = document.createElement('span');
-                            badge.classList.add('dm-badge');
-                            li.appendChild(badge);
-                        }
-                        badge.textContent = '•'; // Simple dot for new message
-                        badge.style.display = 'inline-block';
-                    } else {
-                        // If no unread DMs or chat is active, hide badge
-                        const badge = li.querySelector('.dm-badge');
-                        if (badge) {
-                            badge.style.display = 'none';
-                        }
+                    badge.textContent = '•';
+                    badge.style.display = 'inline-block';
+                } else {
+                    const badge = li.querySelector('.dm-badge');
+                    if (badge) {
+                        badge.style.display = 'none';
                     }
-                    // --- End of DM badge update ---
+                }
+                // End of DM badge logic
 
-                    li.addEventListener('click', () => setChatMode(username));
-                    friendList.appendChild(li);
+                li.addEventListener('click', () => setChatMode(username));
+                targetList.appendChild(li);
 
-                    // Re-apply selected class if this is the active DM
-                    if (activeChatRecipient === username) {
-                        li.classList.add('selected');
-                    }
-                });
+                // Re-apply selected class if this is the active DM
+                if (activeChatRecipient === username) {
+                    li.classList.add('selected');
+                }
             }
 
 
-            // Render Other Online Users (for adding friends)
+            // --- Render Online Friends List ---
+            if (onlineFriends.size === 0) {
+                const li = document.createElement('li');
+                li.textContent = "No friends online.";
+                li.style.color = "#7f8c8d";
+                onlineFriendList.appendChild(li);
+            } else {
+                // Sort online friends alphabetically
+                Array.from(onlineFriends).sort().forEach(username => {
+                    createUserListItem(username, true, onlineFriendList);
+                });
+            }
+
+            // --- Render Offline Friends List ---
+            if (offlineFriends.size === 0) {
+                const li = document.createElement('li');
+                li.textContent = "No friends offline.";
+                li.style.color = "#7f8c8d";
+                offlineFriendList.appendChild(li);
+            } else {
+                // Sort offline friends alphabetically
+                Array.from(offlineFriends).sort().forEach(username => {
+                    createUserListItem(username, false, offlineFriendList); // Pass false for isOnline
+                });
+            }
+
+            // --- Render Other Online Users (for adding friends) ---
             if (onlineOtherUsers.size === 0) {
                 const li = document.createElement('li');
                 li.textContent = "No other online users.";
                 li.style.color = "#7f8c8d";
                 otherOnlineUsersList.appendChild(li);
             } else {
-                onlineOtherUsers.forEach(username => {
+                Array.from(onlineOtherUsers).sort().forEach(username => {
                     // Only show users who are not already friends, and for whom no request is pending
                     if (!friends.has(username) && !outgoingPendingRequests.has(username) && !Array.from(incomingPendingRequests.values()).includes(username)) {
                         const li = document.createElement('li');
                         li.setAttribute('data-username', username);
+                        // These are online, so always add 'online' class
                         li.innerHTML = `<span class="username">${username}</span> <span class="online-status online"></span>`;
+
+                        // For other users, clicking them usually means initiating a friend request
+                        // rather than a DM (unless they're a friend, which they are not here).
                         li.addEventListener('click', () => {
                             // You might want to pre-fill the "add friend" modal with this username
                             // or provide a direct button to send a request.
                             alert(`Click 'Add Friend' to send a request to ${username}.`);
+                            // Alternatively, you could directly show the modal and fill the input:
+                            // addFriendModal.style.display = 'flex';
+                            // addFriendUsernameInput.value = username;
                         });
                         otherOnlineUsersList.appendChild(li);
                     }
                 });
+            }
+
+            // --- Render Other Offline Users (New, but limited by available data) ---
+            // This section will only show users if you explicitly have a list of ALL registered users
+            // from the server. Without that, we can't reliably identify "other" users who are offline.
+            if (offlineOtherUsers.size === 0) {
+                const li = document.createElement('li');
+                li.textContent = "No other offline users known.";
+                li.style.color = "#7f8c8d";
+                otherOfflineUsersList.appendChild(li);
+            } else {
+                // If you get a 'all_registered_users_list' from server, this is where you'd populate it:
+                // Array.from(offlineOtherUsers).sort().forEach(username => {
+                //     // Similar logic as above, but for offline users
+                //     const li = document.createElement('li');
+                //     li.setAttribute('data-username', username);
+                //     li.innerHTML = `<span class="username">${username}</span> <span class="online-status"></span>`; // No 'online' class
+                //     li.addEventListener('click', () => {
+                //         alert(`Click 'Add Friend' to send a request to ${username}.`);
+                //     });
+                //     otherOfflineUsersList.appendChild(li);
+                // });
+                const li = document.createElement('li');
+                li.textContent = "(Requires server to send all registered users for this list to populate reliably)";
+                li.style.color = "#7f8c8d";
+                otherOfflineUsersList.appendChild(li);
             }
 
 
@@ -320,25 +414,24 @@
             }
         }
 
-        // Render pending friend requests in the modal
+        // --- Friend Request Modal Rendering Function ---
         function renderFriendRequestsModal() {
             incomingRequestsList.innerHTML = '';
             outgoingRequestsList.innerHTML = '';
+            noRequestsMessage.style.display = 'none'; // Hide by default
+
             let hasRequests = false;
 
-            console.log("Client: renderFriendRequestsModal - Incoming pending requests:", Array.from(incomingPendingRequests.entries()));
-            console.log("Client: renderFriendRequestsModal - Outgoing pending requests:", Array.from(outgoingPendingRequests));
-
-            // Incoming requests
+            // Render Incoming Requests
             if (incomingPendingRequests.size > 0) {
                 hasRequests = true;
-                incomingPendingRequests.forEach((senderUsername, requestId) => {
+                Array.from(incomingPendingRequests.entries()).forEach(([id, username]) => {
                     const li = document.createElement('li');
                     li.innerHTML = `
-                        <span>${senderUsername}</span>
+                        <span>${username}</span>
                         <div class="request-actions">
-                            <button class="accept" data-request-id="${requestId}">Accept</button>
-                            <button class="reject" data-request-id="${requestId}">Reject</button>
+                            <button class="accept" data-request-id="${id}">Accept</button>
+                            <button class="reject" data-request-id="${id}">Reject</button>
                         </div>
                     `;
                     incomingRequestsList.appendChild(li);
@@ -350,12 +443,13 @@
                 incomingRequestsList.appendChild(li);
             }
 
-            // Outgoing requests
+            // Render Outgoing Requests
             if (outgoingPendingRequests.size > 0) {
                 hasRequests = true;
-                outgoingPendingRequests.forEach(receiverUsername => {
+                Array.from(outgoingPendingRequests).forEach(username => {
                     const li = document.createElement('li');
-                    li.innerHTML = `<span>To: ${receiverUsername} (Pending)</span>`;
+                    li.innerHTML = `<span>${username} (Pending)</span>`;
+                    // You could add a "Cancel Request" button here if your server supports it
                     outgoingRequestsList.appendChild(li);
                 });
             } else {
@@ -365,10 +459,21 @@
                 outgoingRequestsList.appendChild(li);
             }
 
-            noRequestsMessage.style.display = hasRequests ? 'none' : 'block';
-            pendingRequestsBadge.style.display = incomingPendingRequests.size > 0 ? 'inline-block' : 'none';
-            pendingRequestsBadge.textContent = incomingPendingRequests.size;
+            // Update badge for pending requests
+            const totalPending = incomingPendingRequests.size + outgoingPendingRequests.size;
+            if (totalPending > 0) {
+                pendingRequestsBadge.textContent = totalPending;
+                pendingRequestsBadge.style.display = 'inline-block';
+            } else {
+                pendingRequestsBadge.style.display = 'none';
+            }
+
+            if (!hasRequests) {
+                noRequestsMessage.style.display = 'block';
+            }
+            console.log("Client: Friend Requests Modal rendered.");
         }
+
 
         // --- Socket.IO Event Listeners ---
 
@@ -425,7 +530,7 @@
             incomingPendingRequests.clear();
             incoming.forEach(req => incomingPendingRequests.set(req.id, req.username));
             outgoingPendingRequests = new Set(outgoing);
-            renderFriendRequestsModal();
+            renderFriendRequestsModal(); // This was the missing call
             renderUserLists(); // In case a friend request caused a user to move categories (e.g., from Other Online to Friends)
         });
 
@@ -637,7 +742,7 @@
         friendsBtn.addEventListener('click', () => {
             // This button could optionally filter the sidebar to only show friends,
             // or expand/collapse friend sections. For now, it's just an alert.
-            alert('Your friends are displayed in the "Online Friends" list. You can click on them to start a direct message.');
+            alert('Your friends are displayed in the "Online Friends" and "Offline Friends" lists. You can click on them to start a direct message.');
         });
 
         // Add Friend Button
